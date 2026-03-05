@@ -17,12 +17,19 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Command Line
+### Single File Conversion
 ```bash
 python excel_to_pdf.py <excel_file_path> [print_area] [pdf_output_path] [fit_to_one_page]
 ```
 
+### Batch Folder Conversion
+```bash
+python batch_converter.py <folder_path> [print_area] [output_folder] [fit_to_one_page]
+```
+
 ### Examples
+
+#### Single File
 ```bash
 # Basic conversion (fits to one page by default)
 python excel_to_pdf.py boletin-diario_2026_02_20.xls
@@ -37,7 +44,21 @@ python excel_to_pdf.py data.xlsx "A1:Z50" output.pdf
 python excel_to_pdf.py data.xlsx "A1:Z50" output.pdf false
 ```
 
+#### Batch Conversion
+```bash
+# Convert all Excel files in folder with print area
+python batch_converter.py ./excel_files "A1:Z50"
+
+# Convert all Excel files with custom output folder
+python batch_converter.py ./excel_files "A1:Z50" ./pdf_output
+
+# Convert without one-page fitting
+python batch_converter.py ./excel_files "A1:Z50" ./pdf_output false
+```
+
 ### Programmatic Usage
+
+#### Single File
 ```python
 from excel_to_pdf import excel_to_pdf
 
@@ -54,6 +75,26 @@ if result:
     print("Conversion successful!")
 ```
 
+#### Batch Conversion
+```python
+from batch_converter import ExcelToPDFBatchConverter
+
+# Create converter
+converter = ExcelToPDFBatchConverter(
+    folder_path="./excel_files",
+    print_area="A1:Z50",
+    output_folder="./pdf_output",
+    fit_to_one_page=True
+)
+
+# Convert all files
+converter.convert_all()
+
+# Check results
+print(f"Converted: {len(converter.converted_files)} files")
+print(f"Failed: {len(converter.failed_files)} files")
+```
+
 ## Features
 
 - Supports both .xls and .xlsx files
@@ -62,6 +103,9 @@ if result:
 - Preserves formatting, charts, and images from Excel
 - **Custom print area control** - specify exact ranges (e.g., "A1:Z50")
 - **One-page fitting** - automatically fits content to one page (default)
+- **Batch processing** - convert entire folders of Excel files
+- **Progress tracking** - see conversion status and summary
+- **Flexible output** - save PDFs to same folder or custom location
 - Error handling and validation
 - Command-line interface
 
