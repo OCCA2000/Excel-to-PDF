@@ -1,6 +1,7 @@
 import os
 import sys
 from excel_to_pdf import excel_to_pdf
+import win32com.client
 
 class ExcelToPDFBatchConverter:
     """
@@ -48,7 +49,11 @@ class ExcelToPDFBatchConverter:
             pdf_path = os.path.join(self.output_folder, pdf_name)
         else:
             pdf_path = None  # Use default naming
-        
+
+        if self.print_area is None:
+            print("Auto-detecting data range for each file...")
+            self.print_area = self.detect_data_range(excel_path)
+
         print(f"Converting: {excel_file}")
         result = excel_to_pdf(excel_path, self.print_area, pdf_path, self.fit_to_one_page)
         
@@ -96,6 +101,115 @@ class ExcelToPDFBatchConverter:
             print("\nFailed files:")
             for excel_file in self.failed_files:
                 print(f"  {excel_file}")
+
+    def detect_data_range(self, excel_path):
+        """
+        Automatically detect the data range using End(xlUp) method
+        
+        Args:
+            excel_path (str): Path to Excel file
+            
+        Returns:
+            str: Print area in Excel format (e.g., "A1:Z50")
+        """
+        try:
+            excel = win32com.client.Dispatch("Excel.Application")
+            excel.Visible = False
+            excel.DisplayAlerts = False
+            
+            try:
+                workbook = excel.Workbooks.Open(os.path.abspath(excel_path))
+                worksheet = workbook.ActiveSheet
+                
+                # Constants for Excel
+                xlUp = -4162  # Excel constant for End(xlUp)
+                
+                # Find the last column with data by checking from bottom of each column
+                max_row = 0
+                max_col = 0
+                
+                # Start with column A and go right (columns 1 to 256 = A to IV)
+                for col in range(1, 257):  # 1-based indexing for Excel columns
+                    # Start from the bottom of the column (row 65536 for Excel 2003 format)
+                    # and simulate Ctrl+Up arrow to find the last cell with content
+                    bottom_cell = worksheet.Cells(65536, col)
+                    last_cell_in_col = bottom_cell.End(xlUp)
+                    
+                    # Check if we found a cell with content (not in row 1)
+                    if last_cell_in_col.Row > 1:
+                        # Check if this cell actually has content
+                        if last_cell_in_col.Value is not None and str(last_cell_in_col.Value).strip() != "":
+                            # Found content in this column
+                            current_row = last_cell_in_col.Row
+                            current_col = col
+                            if current_row > max_row:
+                                max_row = current_row
+                            if current_col > max_col:
+                                max_col = current_col
+                            
+                            print(f"Found data in column {self.number_to_column_letter(col)} at row {current_row}")
+                
+                if max_row == 0:
+                    print(f"No data found in {excel_path}")
+                    workbook.Close(False)
+                    return None
+                
+                # The first cell will always be A1 (top-left)
+                first_cell = worksheet.Range("A1")
+                
+                if first_cell is None:
+                    print(f"No data found in {excel_path}")
+                    workbook.Close(False)
+                    return None
+                
+                first_row = first_cell.Row
+                first_col = first_cell.Column
+                
+                # Add 1 to each for better spacing
+                last_row = max_row + 1
+                last_col = max_col + 1
+
+                print(last_row, last_col)
+                
+                # Convert column numbers to letters
+                first_col_letter = self.number_to_column_letter(first_col)
+                last_col_letter = self.number_to_column_letter(last_col)
+                
+                # Create print area
+                print_area = f"{first_col_letter}{first_row}:{last_col_letter}{last_row}"
+                
+                print(f"Detected range: {print_area}")
+                print(f"First cell: {first_col_letter}{first_row}, Last cell: {last_col_letter}{max_row}")
+                
+                workbook.Close(False)
+                return print_area
+                
+            except Exception as e:
+                print(f"Error detecting range for {excel_path}: {str(e)}")
+                workbook.Close(False)
+                return None
+            finally:
+                excel.Quit()
+                
+        except Exception as e:
+            print(f"Error opening Excel for range detection: {str(e)}")
+            return None
+
+    def number_to_column_letter(self, n):
+        """
+        Convert a column number to a letter (e.g., 1 -> A, 2 -> B, etc.)
+        
+        Args:
+            n (int): Column number
+        
+        Returns:
+            str: Column letter
+        """
+        string = ""
+        while n > 0:
+            n, remainder = divmod(n - 1, 26)
+            string = chr(65 + remainder) + string
+        return string
 
 def main():
     """Main function for command line usage"""
