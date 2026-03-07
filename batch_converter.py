@@ -8,7 +8,7 @@ class ExcelToPDFBatchConverter:
     A class to batch convert Excel files to PDF with custom print areas
     """
     
-    def __init__(self, folder_path, print_area=None, output_folder=None, fit_to_one_page=True):
+    def __init__(self, folder_path, output_folder=None, fit_to_one_page=True, print_area=None):
         """
         Initialize the batch converter
         
@@ -41,6 +41,7 @@ class ExcelToPDFBatchConverter:
     def convert_single_file(self, excel_file):
         """Convert a single Excel file to PDF"""
         excel_path = os.path.join(self.folder_path, excel_file)
+        auto_detect = False
         
         # Generate output path
         if self.output_folder:
@@ -53,6 +54,7 @@ class ExcelToPDFBatchConverter:
         if self.print_area is None:
             print("Auto-detecting data range for each file...")
             self.print_area = self.detect_data_range(excel_path)
+            auto_detect = True
 
         print(f"Converting: {excel_file}")
         result = excel_to_pdf(excel_path, self.print_area, pdf_path, self.fit_to_one_page)
@@ -63,6 +65,9 @@ class ExcelToPDFBatchConverter:
         else:
             self.failed_files.append(excel_file)
             print(f"✗ Failed: {excel_file}")
+
+        if auto_detect:
+            self.print_area = None
         
         return result
     
@@ -168,8 +173,6 @@ class ExcelToPDFBatchConverter:
                 # Add 1 to each for better spacing
                 last_row = max_row + 1
                 last_col = max_col + 1
-
-                print(last_row, last_col)
                 
                 # Convert column numbers to letters
                 first_col_letter = self.number_to_column_letter(first_col)
@@ -214,17 +217,18 @@ class ExcelToPDFBatchConverter:
 def main():
     """Main function for command line usage"""
     if len(sys.argv) < 2:
-        print("Usage: python batch_converter.py <folder_path> [print_area] [output_folder] [fit_to_one_page]")
-        print("Example: python batch_converter.py ./excel_files 'A1:Z50' ./pdf_output true")
-        print("Example: python batch_converter.py ./excel_files 'A1:Z50'")
+        print("Usage: python batch_converter.py <folder_path> [fit_to_one_page] [output_folder] [print_area]")
+        print('Example: python batch_converter.py ./excel_files ./pdf_output true "A1:Z50"')
+        print("Example: python batch_converter.py ./excel_files ./pdf_output")
         print("Example: python batch_converter.py ./excel_files")
         return
     
     folder_path = sys.argv[1]
-    print_area = sys.argv[2] if len(sys.argv) > 2 else None
-    output_folder = sys.argv[3] if len(sys.argv) > 3 else None
-    fit_one_page = sys.argv[4].lower() == 'true' if len(sys.argv) > 4 else True
-    
+    output_folder = sys.argv[2] if len(sys.argv) > 2 else None
+    fit_one_page = sys.argv[3].lower() == 'true' if len(sys.argv) > 3 else True
+    print_area = sys.argv[4] if len(sys.argv) > 4 else None
+
+
     # Create converter and run
     converter = ExcelToPDFBatchConverter(
         folder_path=folder_path,
